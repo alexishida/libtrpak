@@ -904,7 +904,7 @@ static uint16_t mapper_max_rom_bank(uint8_t mapper) {
     case TRPAK_MAPPER_CAMERA: return 0x03Fu; /* Six bits */
     case TRPAK_MAPPER_HUC1:   return 0x03Fu; /* Six bits */
     case TRPAK_MAPPER_TAMA5:  return 0x0FFu; /* Eight bits (similar to MBC5 low byte) */
-    case TRPAK_MAPPER_HUC3:   return 0x1FFu; /* Nine bits over two regs */
+    case TRPAK_MAPPER_HUC3:   return 0x07Fu; /* BUGFIX: 7 bits (max 128 banks / 2MiB) */
     case TRPAK_MAPPER_MBC6:   return 0x07Fu; /* 128 banks (2MB) support */
     case TRPAK_MAPPER_MBC7:   return 0x1FFu; /* Nine bits like MBC5 */
     case TRPAK_MAPPER_MMM01:  return 0x0FFu; 
@@ -1119,9 +1119,20 @@ int trpak_select_rom_bank(uint16_t bank) {
         break;
     }
 
-    /* BUGFIX: HuC3 and MBC7 are MBC5-compatible for ROM banking. They must fall through to MBC5 logic 
-     * instead of writing the 9th bit to GB 0x4000 (which would conflict with RAM/EEPROM context). */
-    case TRPAK_MAPPER_HUC3:
+    /* BUGFIX: HuC3 treats the entire GB 0x2000-0x3FFF range as a single 7-bit register.
+     * Writing a 9th bit to 0x3000 (like MBC5) overwrites the previous 0x2000 write
+     * with 0, forcing the cartridge back to Bank 0. Fixed by only writing to 0x2000. */
+    case TRPAK_MAPPER_HUC3: {
+        uint8_t lower = (uint8_t)(bank & 0x7Fu); /* Mask to 7 bits */
+
+        if ((result = select_window_slice(0u)) != 0 ||
+            (result = write_filled(TP_REG_ROM_BANK, lower)) != 0 || /* Write only to GB 0x2000 */
+            (result = select_window_slice(1u)) != 0) {
+            return result;
+        }
+        break;
+    }
+    	
     case TRPAK_MAPPER_MBC7:
     case TRPAK_MAPPER_MBC5: {
         uint8_t lower = (uint8_t)(bank & 0xFFu);        /* GB 0x2000 */
