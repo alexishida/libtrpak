@@ -106,6 +106,8 @@ extern "C" {
 #define TRPAK_MAPPER_HUC3   0x08u /**< Detected only; no banking implemented. */
 #define TRPAK_MAPPER_HUC1   0x09u /**< HuC1; dumping is limited to 64 banks. */
 #define TRPAK_MAPPER_MBC4   0x10u /**< Recognized but not implemented. */
+#define TRPAK_MAPPER_MBC6   0x11u
+#define TRPAK_MAPPER_MBC7   0x12u
 /** @} */
 
 /**
